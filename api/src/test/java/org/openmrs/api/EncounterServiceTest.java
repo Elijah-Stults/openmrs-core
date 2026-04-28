@@ -15,50 +15,13 @@ import java.lang.reflect.Field;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import org.apache.commons.lang3.time.DateUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-import org.openmrs.Allergen;
-import org.openmrs.AllergenType;
-import org.openmrs.Allergy;
-import org.openmrs.CodedOrFreeText;
-import org.openmrs.Cohort;
-import org.openmrs.Concept;
-import org.openmrs.Condition;
-import org.openmrs.ConditionClinicalStatus;
-import org.openmrs.ConditionVerificationStatus;
-import org.openmrs.Diagnosis;
-import org.openmrs.DrugOrder;
-import org.openmrs.Encounter;
-import org.openmrs.EncounterRole;
-import org.openmrs.EncounterType;
-import org.openmrs.Form;
-import org.openmrs.FreeTextDosingInstructions;
-import org.openmrs.GlobalProperty;
-import org.openmrs.Location;
-import org.openmrs.Obs;
-import org.openmrs.Order;
-import org.openmrs.OrderGroup;
-import org.openmrs.OrderSet;
-import org.openmrs.Patient;
-import org.openmrs.Person;
-import org.openmrs.Privilege;
-import org.openmrs.Provider;
-import org.openmrs.Role;
-import org.openmrs.TestOrder;
-import org.openmrs.User;
-import org.openmrs.Visit;
-import org.openmrs.VisitType;
+import org.openmrs.*;
 import org.openmrs.api.builder.DrugOrderBuilder;
 import org.openmrs.api.builder.OrderBuilder;
 import org.openmrs.api.context.Context;
@@ -3391,5 +3354,248 @@ public class EncounterServiceTest extends BaseContextSensitiveTest {
 		Integer count = Context.getEncounterService().getEncountersByVisitsAndPatientCount(patient, false, QUERY);
 
 		assertEquals(Integer.valueOf(2), count);
+	}
+
+	/**
+	 * @see EncounterService#getEncountersByPatient(Patient)
+	 */
+	@Test
+	public void getEncountersByPatient_RetrieveEncountersForThePatient() {
+		// Get EncounterSerivce object
+		EncounterService testEncounterService = Context.getEncounterService();
+
+		//Get a valid patient(use preloaded test data)
+		Patient testPatient = Context.getPatientService().getPatient(2);
+		assertNotNull(testPatient);
+
+		//Retrieve current encounters for this patient
+		List<Encounter> testEncounters = testEncounterService.getEncountersByPatient(testPatient);
+
+		//Validate that the list isn't null and has at least one encounter for the patient
+		assertNotNull(testEncounters);
+		assertTrue(testEncounters.size() > 0);
+	}
+
+	@Test
+	public void setVisit_AssignClosedVisitToPatient() {
+		EncounterService encounterService = Context.getEncounterService();
+		Patient testPatient = Context.getPatientService().getPatient(2);
+		assertNotNull(testPatient);
+
+		//Create a new encounter for the patient
+		Encounter testEncounter = new Encounter();
+		testEncounter.setPatient(testPatient);
+		testEncounter.setEncounterDatetime(new Date());
+		testEncounter.setEncounterType(encounterService.getEncounterType(1));
+		testEncounter.setLocation(Context.getLocationService().getLocation(1));
+
+		//Create a visit and mark it as Closed
+		Visit testClosedVisit = new Visit();
+		testClosedVisit.setPatient(testPatient);
+		testClosedVisit.setStartDatetime(new Date());
+		testClosedVisit.setStopDatetime(new Date()); // stopped = closed
+		testClosedVisit.setVisitType(Context.getVisitService().getAllVisitTypes().get(0));
+		testClosedVisit.setVoided(false);
+
+		try {
+			Context.getEncounterService().saveEncounter(testEncounter);
+		} catch (IllegalArgumentException ex) {
+			assertTrue(ex.getMessage().toLowerCase().contains("closed"));
+		}
+	}
+
+	@Test
+	public void getActiveVisitsByPatient_GetActiveVisitWhereNoneExists() {
+		Patient testPatient = new Patient();
+
+		//Verify that the patient has no active visits
+		List<Visit> currentVisits = Context.getVisitService().getActiveVisitsByPatient(testPatient);
+
+		//An empty list should be returned
+		assertNotNull(currentVisits);
+		assertTrue(currentVisits.isEmpty());
+	}
+
+	@Test
+	public void saveVisit_CreateVisitWithNullPatient() {
+		Visit testVisit = new Visit();
+
+		//Set the visit with no patient
+		testVisit.setStartDatetime(new Date());
+		testVisit.setVisitType(Context.getVisitService().getAllVisitTypes().get(0));
+
+		try {
+			Context.getVisitService().saveVisit(testVisit);
+		} catch (Exception ex) {
+			assertTrue(ex.getMessage().toLowerCase().contains("patient"));
+		}
+	}
+
+	/**
+	 * @see EncounterService#saveEncounter(Encounter)
+	 */
+	@Test
+	public void saveEncounter_shouldNotCreateNewVisitWhenNoneExist() {
+		EncounterService encounterService = Context.getEncounterService();
+		PatientService patientService = Context.getPatientService();
+		LocationService locationService = Context.getLocationService();
+
+		Patient p = new Patient();
+		p.addName(new PersonName("Test", "NoVisit", "Patient"));
+		p.setGender("M");
+		Calendar cal = Calendar.getInstance();
+		cal.add(Calendar.YEAR, -30);
+		p.setBirthdate(cal.getTime());
+
+		PatientIdentifierType pit = patientService.getPatientIdentifierType(2);
+		Location loc = locationService.getLocation(1);
+
+		PatientIdentifier pid = new PatientIdentifier("TEST-" + UUID.randomUUID(), pit, loc);
+		pid.setPreferred(true);
+		p.addIdentifier(pid);
+
+		p = patientService.savePatient(p);
+
+		assertEquals(0, Context.getVisitService().getVisitsByPatient(p).size(), "New patient should start with zero visits");
+
+		Encounter enc = new Encounter();
+		enc.setPatient(p);
+		enc.setEncounterDatetime(new Date());
+		enc.setEncounterType(Context.getEncounterService().getEncounterType(1));
+		enc.setLocation(locationService.getLocation(1));
+
+		encounterService.saveEncounter(enc);
+
+		int visitsAfter = Context.getVisitService().getVisitsByPatient(p).size();
+		assertEquals(0, visitsAfter, "No new visit should be created automatically");
+	}
+
+	/**
+	 * @see EncounterService#saveEncounter(Encounter)
+	 */
+	@Test
+	public void saveEncounter_shouldNotCreateNewVisitWhenValidInfoAndVisitExists() {
+		PatientService patientService = Context.getPatientService();
+		VisitService visitService = Context.getVisitService();
+		EncounterService encounterService = Context.getEncounterService();
+
+		Patient patient = patientService.getPatient(2);
+		assertNotNull(patient);
+
+		List<Visit> existingVisits = visitService.getVisitsByPatient(patient);
+		assertEquals(2, existingVisits.size());
+		Visit existingVisit = existingVisits.get(0);
+
+		Encounter encounter = new Encounter();
+		encounter.setPatient(patient);
+		encounter.setEncounterDatetime(existingVisit.getStartDatetime());
+		encounter.setEncounterType(encounterService.getEncounterType(1));
+		encounter.setVisit(existingVisit);
+
+		Encounter saved = encounterService.saveEncounter(encounter);
+		assertNotNull(saved);
+
+		assertEquals(existingVisit.getVisitId(), saved.getVisit().getVisitId());
+
+		List<Visit> visitsAfter = visitService.getVisitsByPatient(patient);
+		assertEquals(2, visitsAfter.size());
+	}
+
+	/**
+	 * @see EncounterService#saveEncounter(Encounter)
+	 */
+	@Test
+	public void saveEncounter_ShouldSaveWithClosedVisit() {
+
+		PatientService patientService = Context.getPatientService();
+		EncounterService encounterService = Context.getEncounterService();
+		VisitService visitService = Context.getVisitService();
+		LocationService locationService = Context.getLocationService();
+
+		// create patient (no visits)
+		Patient p = new Patient();
+		p.addName(new PersonName("Closed", "Visit", "Patient"));
+		p.setGender("M");
+		Calendar cal = Calendar.getInstance();
+		cal.add(Calendar.YEAR, -30);
+		p.setBirthdate(cal.getTime());
+
+		PatientIdentifierType pit = patientService.getPatientIdentifierType(2); // no validation
+		Location loc = locationService.getLocation(1);
+
+		PatientIdentifier pid = new PatientIdentifier("TEST-" + UUID.randomUUID(), pit, loc);
+		pid.setPreferred(true);
+		p.addIdentifier(pid);
+
+		p = patientService.savePatient(p);
+
+		// create a closed visit (start 2 hours ago, stop 1 hour ago)
+		Visit closedVisit = new Visit();
+		closedVisit.setPatient(p);
+		closedVisit.setVisitType(visitService.getVisitType(1));
+		closedVisit.setLocation(loc);
+
+		Date now = new Date();
+		long twoHoursMillis = 2L * 60L * 60L * 1000L;
+		long oneHourMillis  = 60L * 60L * 1000L;
+		Date start = new Date(now.getTime() - twoHoursMillis);
+		Date stop  = new Date(now.getTime() - oneHourMillis);
+		closedVisit.setStartDatetime(start);
+		closedVisit.setStopDatetime(stop);
+
+		closedVisit = visitService.saveVisit(closedVisit);
+
+		int initialVisitCount = visitService.getVisitsByPatient(p).size();
+		assertEquals(1, initialVisitCount, "Patient should have exactly one CLOSED visit");
+
+		// build and save encounter (do not assign visit)
+		Encounter enc = new Encounter();
+		enc.setPatient(p);
+		enc.setEncounterDatetime(now);
+		enc.setEncounterType(encounterService.getEncounterType(1));
+		enc.setLocation(loc);
+		enc.setVisit(null);
+
+		Encounter saved = encounterService.saveEncounter(enc);
+		assertNotNull(saved.getEncounterId(), "Encounter should be saved");
+
+		Encounter reloaded = encounterService.getEncounter(saved.getEncounterId());
+		assertNull(reloaded.getVisit(), "Encounter must NOT be assigned to a closed visit");
+
+		int afterVisitCount = visitService.getVisitsByPatient(p).size();
+		assertEquals(initialVisitCount, afterVisitCount, "Saving encounter should NOT create a new visit");
+	}
+
+	/**
+	 * @see EncounterService#saveEncounter(Encounter)
+	 */
+	@Test
+	public void saveEncounter_ShouldNotSaveInvalidPatientEncounter() {
+		EncounterService encounterService = Context.getEncounterService();
+		LocationService locationService = Context.getLocationService();
+
+		int beforeCount = encounterService
+			.getEncounters(null, null, null, null, null, null, null, null, null, true)
+			.size();
+
+		// transient (unsaved) patient
+		Patient transientPatient = new Patient();
+		transientPatient.addName(new PersonName("Invalid", "Patient", null));
+
+		Encounter enc = new Encounter();
+		enc.setPatient(transientPatient);
+		enc.setEncounterDatetime(new Date());
+		enc.setEncounterType(encounterService.getEncounterType(1));
+		enc.setLocation(locationService.getLocation(1));
+
+		assertThrows(IllegalStateException.class, () -> encounterService.saveEncounter(enc), "Saving an encounter for a non-persisted patient should throw IllegalStateException in this environment");
+
+		// Clear session so transient objects won't cause flush errors on subsequent queries
+		Context.clearSession();
+
+		int afterCount = encounterService
+			.getEncounters(null, null, null, null, null, null, null, null, null, true)
+			.size();
+		assertEquals(beforeCount, afterCount, "No encounter should be saved when patient is invalid");
 	}
 }
