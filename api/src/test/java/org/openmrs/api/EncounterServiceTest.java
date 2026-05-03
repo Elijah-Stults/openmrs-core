@@ -3505,7 +3505,7 @@ public class EncounterServiceTest extends BaseContextSensitiveTest {
 	 * @see EncounterService#saveEncounter(Encounter)
 	 */
 	@Test
-	public void saveEncounter_ShouldSaveWithClosedVisit() {
+	public void saveEncounter_shouldSaveWithClosedVisit() {
 
 		PatientService patientService = Context.getPatientService();
 		EncounterService encounterService = Context.getEncounterService();
