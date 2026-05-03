@@ -3537,9 +3537,9 @@ public class EncounterServiceTest extends BaseContextSensitiveTest {
 
 		Date now = new Date();
 		long twoHoursMillis = 2L * 60L * 60L * 1000L;
-		long oneHourMillis  = 60L * 60L * 1000L;
+		long oneHourMillis = 60L * 60L * 1000L;
 		Date start = new Date(now.getTime() - twoHoursMillis);
-		Date stop  = new Date(now.getTime() - oneHourMillis);
+		Date stop = new Date(now.getTime() - oneHourMillis);
 		closedVisit.setStartDatetime(start);
 		closedVisit.setStopDatetime(stop);
 
@@ -3574,9 +3574,7 @@ public class EncounterServiceTest extends BaseContextSensitiveTest {
 		EncounterService encounterService = Context.getEncounterService();
 		LocationService locationService = Context.getLocationService();
 
-		int beforeCount = encounterService
-			.getEncounters(null, null, null, null, null, null, null, null, null, true)
-			.size();
+		int beforeCount = encounterService.getEncounters(null, null, null, null, null, null, null, null, null, true).size();
 
 		// transient (unsaved) patient
 		Patient transientPatient = new Patient();
@@ -3588,14 +3586,13 @@ public class EncounterServiceTest extends BaseContextSensitiveTest {
 		enc.setEncounterType(encounterService.getEncounterType(1));
 		enc.setLocation(locationService.getLocation(1));
 
-		assertThrows(IllegalStateException.class, () -> encounterService.saveEncounter(enc), "Saving an encounter for a non-persisted patient should throw IllegalStateException in this environment");
+		assertThrows(IllegalStateException.class, () -> encounterService.saveEncounter(enc),
+		    "Saving an encounter for a non-persisted patient should throw IllegalStateException in this environment");
 
 		// Clear session so transient objects won't cause flush errors on subsequent queries
 		Context.clearSession();
 
-		int afterCount = encounterService
-			.getEncounters(null, null, null, null, null, null, null, null, null, true)
-			.size();
+		int afterCount = encounterService.getEncounters(null, null, null, null, null, null, null, null, null, true).size();
 		assertEquals(beforeCount, afterCount, "No encounter should be saved when patient is invalid");
 	}
 }
