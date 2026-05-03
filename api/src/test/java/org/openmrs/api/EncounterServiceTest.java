@@ -3360,7 +3360,7 @@ public class EncounterServiceTest extends BaseContextSensitiveTest {
 	 * @see EncounterService#getEncountersByPatient(Patient)
 	 */
 	@Test
-	public void getEncountersByPatient_RetrieveEncountersForThePatient() {
+	public void getEncountersByPatient_shouldRetrieveEncountersForThePatient() {
 		// Get EncounterSerivce object
 		EncounterService testEncounterService = Context.getEncounterService();
 
@@ -3377,7 +3377,7 @@ public class EncounterServiceTest extends BaseContextSensitiveTest {
 	}
 
 	@Test
-	public void setVisit_AssignClosedVisitToPatient() {
+	public void setVisit_shouldAssignClosedVisitToPatient() {
 		EncounterService encounterService = Context.getEncounterService();
 		Patient testPatient = Context.getPatientService().getPatient(2);
 		assertNotNull(testPatient);
@@ -3405,7 +3405,7 @@ public class EncounterServiceTest extends BaseContextSensitiveTest {
 	}
 
 	@Test
-	public void getActiveVisitsByPatient_GetActiveVisitWhereNoneExists() {
+	public void getActiveVisitsByPatient_shouldGetActiveVisitWhereNoneExists() {
 		Patient testPatient = new Patient();
 
 		//Verify that the patient has no active visits
@@ -3417,7 +3417,7 @@ public class EncounterServiceTest extends BaseContextSensitiveTest {
 	}
 
 	@Test
-	public void saveVisit_CreateVisitWithNullPatient() {
+	public void saveVisit_shouldCreateVisitWithNullPatient() {
 		Visit testVisit = new Visit();
 
 		//Set the visit with no patient
