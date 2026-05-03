@@ -3570,7 +3570,7 @@ public class EncounterServiceTest extends BaseContextSensitiveTest {
 	 * @see EncounterService#saveEncounter(Encounter)
 	 */
 	@Test
-	public void saveEncounter_ShouldNotSaveInvalidPatientEncounter() {
+	public void saveEncounter_shouldNotSaveInvalidPatientEncounter() {
 		EncounterService encounterService = Context.getEncounterService();
 		LocationService locationService = Context.getLocationService();
 
